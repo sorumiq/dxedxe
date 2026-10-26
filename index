@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nova — каталог аксессуаров</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+    <header>
+        <div class="logo"><span class="logo-mark">✦</span><span>nova<span class="dot">.</span></span></div>
+    </header>
+
+    <section class="hero">
+        <p class="eyebrow">Коллекция аксессуаров</p>
+        <h1>Маленькие детали.<br><span>Большой комфорт.</span></h1>
+        <p class="subtitle">Всё, что нужно для идеального рабочего места. Выбирай любимые аксессуары и добавляй в корзину.</p>
+    </section>
+
+    <div class="layout">
+        <main>
+            <h2 class="catalog-title">Каталог товаров</h2>
+            <div id="catalog" class="catalog"></div>
+        </main>
+
+        <aside class="cart-panel">
+            <div class="cart-head">
+                <h2>Моя корзина</h2>
+                <div class="ico">🛒</div>
+            </div>
+            <div id="cart" aria-live="polite"></div>
+        </aside>
+    </div>
+
+    <footer>© 2026 nova. Сделано с любовью к деталям ✦</footer>
+</div>
+
+<script>
+    // ---------- Товары ----------
+    // key — имя файла в папке img/ (img/<key>.webp)
+    // imgClass — как показывать фото: screen (тёмный фон), wide (широкое), cut (без фона)
+    const products = [
+        { id: 1, key: "headphones", title: "Наушники",   sub: "Чистый звук для любого момента", price: 2500, imgClass: "screen" },
+        { id: 2, key: "mouse",      title: "Мышь",       sub: "Точность в каждом движении",     price: 1200, imgClass: "screen" },
+        { id: 3, key: "keyboard",   title: "Клавиатура", sub: "Комфорт и стиль на столе",       price: 3000, imgClass: "wide" },
+        { id: 4, key: "mousepad",   title: "Коврик",     sub: "Удобство в каждой детали",       price: 500,  imgClass: "cut" },
+    ];
+
+    const catalogEl = document.getElementById("catalog");
+    const cartEl = document.getElementById("cart");
+
+    // ---------- Корзина: id товара -> количество ----------
+    let cart = loadCart();
+
+    function loadCart() {
+        try {
+            const data = JSON.parse(localStorage.getItem("shop-cart") || "{}");
+            const clean = {};
+            for (const id in data) {
+                if (products.some(p => p.id === Number(id)) && data[id] > 0) clean[id] = data[id];
+            }
+            return clean;
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function saveCart() {
+        try { localStorage.setItem("shop-cart", JSON.stringify(cart)); } catch (e) {}
+    }
+
+    const fmt = n => n.toLocaleString("ru-RU");
+
+    // ---------- Каталог ----------
+    function renderCatalog() {
+        catalogEl.innerHTML = products.map(p => `
+            <article class="card">
+                <div class="media t-${p.key}">
+                    <img class="${p.imgClass}" src="img/${p.key}.webp" alt="${p.title}">
+                </div>
+                <h3>${p.title}</h3>
+                <p class="sub">${p.sub}</p>
+                <div class="buy">
+                    <span class="price">${fmt(p.price)} ₽</span>
+                    <button class="btn-add" onclick="addToCart(${p.id})">+ В корзину</button>
+                </div>
+            </article>
+        `).join("");
+    }
+
+    // ---------- Действия ----------
+    function addToCart(id) {
+        cart[id] = (cart[id] || 0) + 1;
+        saveCart();
+        renderCart();
+    }
+
+    function changeQty(id, delta) {
+        cart[id] = (cart[id] || 0) + delta;
+        if (cart[id] <= 0) delete cart[id];
+        saveCart();
+        renderCart();
+    }
+
+    function removeFromCart(id) {
+        delete cart[id];
+        saveCart();
+        renderCart();
+    }
+
+    function checkout() {
+        cart = {};
+        saveCart();
+        renderCart();
+        alert("Заказ оформлен!");
+    }
+
+    // ---------- Отрисовка корзины ----------
+    function renderCart() {
+        const rows = Object.keys(cart).map(id => ({
+            p: products.find(x => x.id === Number(id)),
+            qty: cart[id],
+        }));
+
+        let total = 0;
+        let count = 0;
+        rows.forEach(({ p, qty }) => {
+            total += p.price * qty;
+            count += qty;
+        });
+
+        const itemsHtml = rows.length === 0 ? `
+            <div class="empty">
+                <div class="ico-big">🛍️</div>
+                <b>Пока здесь пусто</b>
+                <p>Добавьте что-нибудь из каталога, и товары появятся здесь.</p>
+            </div>
+        ` : `
+            <div class="items">
+                ${rows.map(({ p, qty }) => `
+                    <div class="item">
+                        <div class="thumb t-${p.key}">
+                            <img class="${p.imgClass}" src="img/${p.key}.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="name">${p.title}</div>
+                            <div class="unit">${fmt(p.price)} ₽ / шт.</div>
+                            <div class="qty">
+                                <button onclick="changeQty(${p.id}, -1)" aria-label="Меньше">−</button>
+                                <span>${qty}</span>
+                                <button onclick="changeQty(${p.id}, 1)" aria-label="Больше">+</button>
+                            </div>
+                        </div>
+                        <div class="right">
+                            <div class="sum">${fmt(p.price * qty)} ₽</div>
+                            <button class="btn-del" onclick="removeFromCart(${p.id})">Удалить</button>
+                        </div>
+                    </div>
+                `).join("")}
+            </div>
+        `;
+
+        cartEl.innerHTML = `
+            ${itemsHtml}
+            <div class="totals">
+                <div class="row"><span>Товаров</span><b>${count}</b></div>
+                <div class="row total"><span>Итого</span><b>${fmt(total)} ₽</b></div>
+                <button class="btn-checkout" onclick="checkout()" ${rows.length === 0 ? "disabled" : ""}>
+                    Оформить заказ →
+                </button>
+            </div>
+        `;
+    }
+
+    renderCatalog();
+    renderCart();
+</script>
+</body>
+</html>
